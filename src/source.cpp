@@ -21,6 +21,8 @@ struct GameObject
     olc::vi2d size;    
 };
 
+
+
 class Rect
 {
 public:
@@ -77,11 +79,31 @@ public:
     }
     GameObject player;
     GameObject ground;
+
     olc::Sprite* tileSet;
     Rect rect1, rect2;
 
+	std::vector<olc::Sprite*> levelTileSprites;
+
+	olc::vi2d camPos = { 0, 0 };
 
 public:
+	void loadTiles() {
+		tileSet = new olc::Sprite("assets/Tileset.png");
+		int tileSetWidth = tileSet->width / 16;
+		int tileSetHeight = tileSet->height / 16;
+
+		for (int i = 0; i < (tileSet->width / 16) * (tileSet->height / 16); i++) {
+			olc::Sprite* tileSprite = new olc::Sprite(16, 16);
+			int x = i % tileSetWidth;
+			int y = i / tileSetHeight;
+			SetDrawTarget(tileSprite);
+			DrawPartialSprite({ x * 16, y * 16 }, tileSet, { 0, 0 }, { 16, 16 });
+			levelTileSprites.push_back(tileSprite);
+		}
+		SetDrawTarget((uint8_t)0);
+	}
+
     bool OnUserCreate() override
     {
         LoadMapFromCSV("assets/map.csv");
@@ -95,8 +117,8 @@ public:
         ground.size = {16, 16};
         player.position = {0, (float)ScreenHeight() / 2 };
         player.velocity = {0, 0 };
-        tileSet = new olc::Sprite("assets/Tileset.png");
-
+        
+		loadTiles();
 
 
         return true;
@@ -104,6 +126,19 @@ public:
 
     bool OnUserUpdate(float fElapsedTime) override
     {
+		for (int i = 0; i < MAPWIDTH * MAPHEIGHT-1; i++) {
+			int camBounds[4];
+			int x = i % MAPWIDTH;
+			int y = i / MAPHEIGHT;
+
+			
+
+			int sprIndex = vecMap[i];
+			
+			if (sprIndex >= 0 && sprIndex < levelTileSprites.size()-1)
+				DrawSprite(x * 16, y * 16, levelTileSprites[sprIndex]);
+		}
+
         //player.velocity = { 0, 0 };
         if (GetKey(olc::LEFT).bHeld)
         {
@@ -180,23 +215,56 @@ public:
 
 private:
 
+	std::vector<std::string> split(std::string str, char delimiter) {
+		std::string currentPart = "";
+		std::vector<std::string> output;
+		for (int i = 0; i < str.length(); i++) {
+			if (str[i] != delimiter)
+				currentPart += std::string(1, str[i]);
+			else {
+				output.push_back(currentPart);
+				currentPart = "";
+			}
+		}
+		output.push_back(currentPart);
+
+		return output;
+	}
+
     void LoadMapFromCSV(std::string file)
     {
+
         std::ifstream t(file);
         std::string text((std::istreambuf_iterator<char>( t )),
             std::istreambuf_iterator<char>() );
 
+		std::cout << text.length() << std::endl;
+
         std::string delimiter = ",";
+
+		vecMap.reserve(MAPWIDTH * MAPHEIGHT);
 
         size_t pos = 0;
         std::string token;
         while ((pos = text.find(delimiter)) != std::string::npos) {
             token = text.substr(0, pos);
-            std::cout << std::stoi(token) << std::endl;
+            //std::cout << std::stoi(token) << std::endl;
             vecMap.emplace_back(std::stoi(token));
 
             text.erase(0, pos + delimiter.length());
         }
+		/*
+		std::vector<std::string> csvSegments = split(text, ',');
+		
+		std::cout << csvSegments.size() << std::endl;
+
+		for (std::string str : csvSegments) {
+			int val = std::stoi(str);
+			std::cout << val << std::endl;
+			vecMap.push_back(val);
+		}*/
+
+		std::cout << "vecmap size " << vecMap.size() << std::endl;
     }
 
     std::vector<int> vecMap;
