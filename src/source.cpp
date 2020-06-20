@@ -11,6 +11,9 @@
 #define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
 
+#define MAPWIDTH 212
+#define MAPHEIGHT 16
+
 struct GameObject
 {
     olc::vf2d position;
@@ -33,6 +36,8 @@ public:
 public:
     bool OnUserCreate() override
     {
+        LoadMapFromCSV("assets/map.csv");
+
         player.position = { 0 , (float)ScreenHeight() / 2 - 16 };
         player.velocity = { 0, 0 };
         player.size = { 16, 16 };
@@ -78,6 +83,26 @@ public:
 
 private:
 
+    void LoadMapFromCSV(std::string file)
+    {
+        std::ifstream t(file);
+        std::string text((std::istreambuf_iterator<char>( t )),
+            std::istreambuf_iterator<char>() );
+
+        std::string delimiter = ",";
+
+        size_t pos = 0;
+        std::string token;
+        while ((pos = text.find(delimiter)) != std::string::npos) {
+            token = text.substr(0, pos);
+            std::cout << std::stoi(token) << std::endl;
+            vecMap.emplace_back(std::stoi(token));
+
+            text.erase(0, pos + delimiter.length());
+        }
+    }
+
+    std::vector<int> vecMap;
 };
 
 int main()
