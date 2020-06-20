@@ -5,25 +5,22 @@
 // AlterEgo
 // Gecero
 // SirFelixDelazar
-//
+// Ben (benjaminkyd@gmail.com)
 //
 //
 
 #define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
 
-#define MAPWIDTH 212
+#define MAPWIDTH 211
 #define MAPHEIGHT 16
 #define TILE_SIZE 16
 
-struct GameObject
+
+struct Camera
 {
     olc::vf2d position;
-    olc::vf2d velocity;
-    olc::vi2d size;
 };
-
-
 
 class Rect
 {
@@ -70,47 +67,49 @@ public:
     }
 };
 
+class GameObject
+{
+public:
+    GameObject( olc::vd2d position, double width, double height, olc::Pixel colour )
+        : collider( position, width, height, colour ),
+          position( position )
+    {
+    }
+    Rect collider;
+    olc::vf2d position;
+    olc::vf2d velocity;
+    olc::vi2d size;
+};
+
 class olc_RelayRace : public olc::PixelGameEngine
 {
 public:
     olc_RelayRace() :
         rect1( olc::vd2d( 50, 100 ), 100, 50, olc::WHITE ),
-        rect2( olc::vd2d( 200, 100 ), 100, 50, olc::WHITE )
+        rect2( olc::vd2d( 200, 100 ), 100, 50, olc::WHITE ),
+        player( ) // construct the player here 
+        // then make the collider do shit
+        // collide it with the world idk
     {
         sAppName = "SuperMarioBros. Reverse";
     }
     GameObject player;
-    GameObject ground;
+    Camera camera;
 
     olc::Sprite* tileSet;
     Rect rect1, rect2;
 
     std::vector<olc::Sprite*> levelTileSprites;
 
-    olc::vi2d camPos = { 0, 0 };
-
 public:
-    void loadTiles()
-    {
-        tileSet = new olc::Sprite( "assets/Tileset.png" );
-        int tileSetWidth = tileSet->width / TILE_SIZE;
-        int tileSetHeight = tileSet->height / TILE_SIZE;
-
-        for ( int i = 0; i < tileSetWidth * tileSetHeight; i++ )
-        {
-            olc::Sprite* tileSprite = new olc::Sprite( 16, 16 );
-            int x = i % tileSetWidth;
-            int y = i / tileSetHeight;
-            SetDrawTarget( tileSprite );
-            DrawPartialSprite( { 0, 0 }, tileSet, { x * 16, y * 16 }, { 16, 16 } );
-            levelTileSprites.push_back( tileSprite );
-        }
-        SetDrawTarget( nullptr );
-    }
 
     bool OnUserCreate() override
     {
         LoadMapFromCSV( "assets/map.csv" );
+
+        tileSet = new olc::Sprite( "assets/Tileset.png" );
+
+        camera.position = { 0.0f, -100.0f };
 
         player.position = { 0 , (float)ScreenHeight() / 2 - 16 };
         player.velocity = { 0, 0 };
@@ -119,77 +118,37 @@ public:
         ground.position = { 0, (float)ScreenHeight() / 2 };
         ground.velocity = { 0, 0 };
         ground.size = { 16, 16 };
+
         player.position = { 0, (float)ScreenHeight() / 2 };
         player.velocity = { 0, 0 };
 
-        loadTiles();
-
-
-        return true;
-    }
-
-    bool OnUserDestroy() override
-    {
-        delete tileSet;
-        levelTileSprites.clear();
         return true;
     }
 
     bool OnUserUpdate( float fElapsedTime ) override
     {
 
-        for ( int i = 0; i < MAPWIDTH * MAPHEIGHT - 1; i++ )
-        {
-            if ( i == 1695 ) std::cout << vecMap[i] << std::endl;
-            int x = i % MAPWIDTH;
-            int y = i / MAPHEIGHT;
-
-            int sprIndex = vecMap[i];
-
-            if ( sprIndex >= 0 && sprIndex < levelTileSprites.size() - 1 )
-                DrawSprite( x * 16, y * 16, levelTileSprites[sprIndex] );
-        }
-
-        //player.velocity = { 0, 0 };
-        if ( GetKey( olc::LEFT ).bHeld )
-        {
-            if ( player.velocity.x < -30.0f )
-                player.velocity.x -= 0.8f;
-            else
-                player.velocity.x = -30.0f;
-        }
-        if ( GetKey( olc::RIGHT ).bHeld )
-        {
-            if ( player.velocity.x > 30 )
-                player.velocity.x += 0.8f;
-            else
-                player.velocity.x = 30.0f;
-        }
-        //player.velocity.x = 30;
-
-        player.position += player.velocity * fElapsedTime;
-
         //rect1.position.x = GetMouseX();
         //rect1.position.y = GetMouseY();
 
         if ( GetKey( olc::W ).bHeld )
         {
-            rect1.position.y -= fElapsedTime * 100;
+            player.position.y -= fElapsedTime * 100;
         }
 
         if ( GetKey( olc::S ).bHeld )
         {
-            rect1.position.y += fElapsedTime * 100;
+            player.position.y += fElapsedTime * 100;
         }
 
         if ( GetKey( olc::A ).bHeld )
         {
-            rect1.position.x -= fElapsedTime * 100;
+            player.position.x -= fElapsedTime * 100;
         }
 
         if ( GetKey( olc::D ).bHeld )
         {
-            rect1.position.x += fElapsedTime * 100;
+            player.position.x += fElapsedTime * 100;
         }
 
         olc::vd2d displacement;
@@ -212,7 +171,33 @@ public:
 
         Clear( olc::CYAN );
 
-        DrawPartialSprite( ground.position, tileSet, olc::vi2d( 0, 0 ), ground.size );
+        // render loop
+
+        for ( int x = 0; x < MAPWIDTH; x++ )
+        for ( int y = 0; y < MAPHEIGHT; y++ )
+        {
+            // hacky but it works
+            if ( (y * MAPWIDTH + x) > 3375 )
+                continue;
+
+            int ActiveTile = MapVector[y * MAPWIDTH + x];
+
+            // sky
+            if ( ActiveTile == -1 ) continue;
+
+            // find tile in map
+            auto DrawFrom = [&] (int tile) {
+                // mod w for x int div y - JavidX9
+                int w = tile % (tileSet->width / 16);
+                int h = tile / (tileSet->width / 16);
+                return olc::vi2d( w * 16, h * 16 );
+            };
+
+            SetPixelMode( olc::Pixel::ALPHA );
+            DrawPartialSprite( { static_cast<int>(camera.position.x + (x * 16)), static_cast<int>(camera.position.y + (y * 16)) }, tileSet, DrawFrom( ActiveTile ), { 16, 16 });
+            SetPixelMode( olc::Pixel::NORMAL );
+
+        }
 
         FillRect( player.position, player.size, olc::RED );
 
@@ -226,25 +211,6 @@ public:
 
 private:
 
-    std::vector<std::string> split( std::string str, char delimiter )
-    {
-        std::string currentPart = "";
-        std::vector<std::string> output;
-        for ( int i = 0; i < str.length(); i++ )
-        {
-            if ( str[i] != delimiter )
-                currentPart += std::string( 1, str[i] );
-            else
-            {
-                output.push_back( currentPart );
-                currentPart = "";
-            }
-        }
-        output.push_back( currentPart );
-
-        return output;
-    }
-
     void LoadMapFromCSV( std::string file )
     {
 
@@ -256,33 +222,21 @@ private:
 
         std::string delimiter = ",";
 
-        vecMap.reserve( MAPWIDTH * MAPHEIGHT );
+        MapVector.reserve( MAPWIDTH * MAPHEIGHT );
 
         size_t pos = 0;
         std::string token;
         while ( (pos = text.find( delimiter )) != std::string::npos )
         {
             token = text.substr( 0, pos );
-            //std::cout << std::stoi(token) << std::endl;
-            vecMap.emplace_back( std::stoi( token ) );
-
+            MapVector.emplace_back( std::stoi( token ) );
             text.erase( 0, pos + delimiter.length() );
         }
-        /*
-        std::vector<std::string> csvSegments = split(text, ',');
 
-        std::cout << csvSegments.size() << std::endl;
-
-        for (std::string str : csvSegments) {
-            int val = std::stoi(str);
-            std::cout << val << std::endl;
-            vecMap.push_back(val);
-        }*/
-
-        std::cout << "vecmap size " << vecMap.size() << std::endl;
+        std::cout << "Map Size: " << MapVector.size() << std::endl;
     }
 
-    std::vector<int> vecMap;
+    std::vector<int> MapVector;
 };
 
 int main()
