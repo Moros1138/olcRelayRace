@@ -7,12 +7,14 @@
 // SirFelixDelazar
 // Ben (benjaminkyd@gmail.com)
 // I hate Slovakia
-//
+// SoruCoder
+// 
+// Behold the walk of shame...
 
 #define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
 
-#define MAPWIDTH 211
+#define MAPWIDTH 212
 #define MAPHEIGHT 16
 #define TILE_SIZE 16
 
@@ -95,7 +97,7 @@ public:
         // then make the collider do shit
         // collide it with the world idk
     {
-        sAppName = "SuperMarioBros. Reverse";
+        sAppName = "Super Mario Bros. Reverse";
     }
     GameObject player;
     Camera camera;
@@ -117,7 +119,7 @@ public:
 
         camera.position = { 0.0f, -100.0f };
 
-        player.position = { 0 , 100 };
+        player.position = { 0, 0 };
         player.velocity = { 0, 0 };
         player.size = { 16, 16 };
 
@@ -152,10 +154,12 @@ public:
         }
 
 		olc::vf2d oldpos = player.position;
-		if (player.position.x < ScreenWidth() / 5 || player.position.x > ScreenWidth() - (ScreenWidth() / 5))
-			camera.position.x -= player.velocity.x * fElapsedTime;
-		else
-			player.position.x += player.velocity.x * fElapsedTime;
+        player.velocity.y = 100;
+		//if (player.position.x < ScreenWidth() / 5 || player.position.x > ScreenWidth() - (ScreenWidth() / 5))
+		//	camera.position.x -= player.velocity.x * fElapsedTime;
+		//else
+		player.position.x += player.velocity.x * fElapsedTime;
+        player.position.y += player.velocity.y * fElapsedTime;
 
         olc::vd2d displacement;
 
@@ -174,26 +178,65 @@ public:
             rect2.colour = olc::WHITE;
         }
 
-		auto getTile[&](int x, int y) {
-			//CHECK BOUNDS IF NOT DUMB
-			return MapVector[(y * MAPWIDTH) + x];
-		}
-		float worldX = player.position.x / 16;
-		float worldY = player.position.y / 16;
-		float oldWorldX = oldpos.x / 16;
-		float oldWorldY = oldpos.y / 16;
+        auto getTile = [&](int x, int y) {
+            if (x >= 0 && y >= 0 && x <= MAPWIDTH / 16 && y <= MAPHEIGHT / 16)
+                return MapVector[(y * MAPWIDTH) + x];
+            return -1;
+        };
+        olc::vf2d worldPos = { player.position.x / 16, player.position.y / 16 };
+        olc::vf2d oldWorldPos = { oldpos.x / 16, oldpos.y / 16 };
 
 		if (player.velocity.x < 0)
 		{
-			int tile0 = MapVector[];
-			int tile1 = MapVector[(((int)worldY - 1) * MAPWIDTH) + (int)worldX];
-			for (int i = 0; i < 8; i++)
-			{
-				if (tile0 == collidableTileArray[i])
-					player.position = oldpos;
-			}
+            int tile0 = getTile(worldPos.x, oldWorldPos.y);
+            int tile1 = getTile(worldPos.x, oldWorldPos.y + 0.9f);
+            for (int i = 0; i < 8; i++) {
+                if (tile0 == collidableTileArray[i] || tile1 == collidableTileArray[i]) {
+                    worldPos.x = (int)worldPos.x + 1;
+                    player.velocity.x = 0;
+                    break;
+                }
+            }
 		}
-		else
+        else
+        {
+            int tile0 = getTile(worldPos.x + 1, oldWorldPos.y);
+            int tile1 = getTile(worldPos.x + 1, oldWorldPos.y + 0.9f);
+            for (int i = 0; i < 8; i++) {
+                if (tile0 == collidableTileArray[i] || tile1 == collidableTileArray[i]) {
+                    worldPos.x = (int)worldPos.x;
+                    player.velocity.x = 0;
+                    break;
+                }
+            }
+        }
+
+        if (player.velocity.y < 0)
+        {
+            int tile0 = getTile(worldPos.x, worldPos.y);
+            int tile1 = getTile(worldPos.x + 0.9f , worldPos.y);
+            for (int i = 0; i < 8; i++) {
+                if (tile0 == collidableTileArray[i] || tile1 == collidableTileArray[i]) {
+                    worldPos.y = (int)worldPos.y + 1;
+                    player.velocity.y = 0;
+                    break;
+                }
+            }
+        }
+        else
+        {
+            int tile0 = getTile(worldPos.x, worldPos.y + 1);
+            int tile1 = getTile(worldPos.x + 0.9f, worldPos.y + 1);
+            for (int i = 0; i < 8; i++) {
+                if (tile0 == collidableTileArray[i] || tile1 == collidableTileArray[i]) {
+                    worldPos.y = (int)worldPos.y;
+                    player.velocity.y = 0;
+                    break;
+                }
+            }
+        }
+
+        player.position = worldPos * 16;
 
         Clear( olc::CYAN );
 
