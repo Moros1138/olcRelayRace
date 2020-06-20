@@ -6,7 +6,7 @@
 // Gecero
 // SirFelixDelazar
 // Ben (benjaminkyd@gmail.com)
-//
+// I hate Slovakia
 //
 
 #define OLC_PGE_APPLICATION
@@ -34,6 +34,8 @@ public:
     {
 
     }
+	Rect()
+	{}
 
     bool Overlaps( Rect rect, olc::vd2d& displacement )
     {
@@ -70,6 +72,8 @@ public:
 class GameObject
 {
 public:
+	GameObject()
+	{}
     GameObject( olc::vd2d position, double width, double height, olc::Pixel colour )
         : collider( position, width, height, colour ),
           position( position )
@@ -86,8 +90,8 @@ class olc_RelayRace : public olc::PixelGameEngine
 public:
     olc_RelayRace() :
         rect1( olc::vd2d( 50, 100 ), 100, 50, olc::WHITE ),
-        rect2( olc::vd2d( 200, 100 ), 100, 50, olc::WHITE ),
-        player( ) // construct the player here 
+        rect2( olc::vd2d( 200, 100 ), 100, 50, olc::WHITE )
+        //player( ) // construct the player here 
         // then make the collider do shit
         // collide it with the world idk
     {
@@ -101,6 +105,8 @@ public:
 
     std::vector<olc::Sprite*> levelTileSprites;
 
+	int collidableTileArray[8] = { 0, 1, 24, 33, 264, 265, 297, 298 };
+
 public:
 
     bool OnUserCreate() override
@@ -111,16 +117,10 @@ public:
 
         camera.position = { 0.0f, -100.0f };
 
-        player.position = { 0 , (float)ScreenHeight() / 2 - 16 };
+        player.position = { 0 , 100 };
         player.velocity = { 0, 0 };
         player.size = { 16, 16 };
 
-        ground.position = { 0, (float)ScreenHeight() / 2 };
-        ground.velocity = { 0, 0 };
-        ground.size = { 16, 16 };
-
-        player.position = { 0, (float)ScreenHeight() / 2 };
-        player.velocity = { 0, 0 };
 
         return true;
     }
@@ -143,13 +143,19 @@ public:
 
         if ( GetKey( olc::A ).bHeld )
         {
-            player.position.x -= fElapsedTime * 100;
+            player.velocity.x = 50;
         }
 
         if ( GetKey( olc::D ).bHeld )
         {
-            player.position.x += fElapsedTime * 100;
+            player.velocity.x = -50;
         }
+
+		olc::vf2d oldpos = player.position;
+		if (player.position.x < ScreenWidth() / 5 || player.position.x > ScreenWidth() - (ScreenWidth() / 5))
+			camera.position.x -= player.velocity.x * fElapsedTime;
+		else
+			player.position.x += player.velocity.x * fElapsedTime;
 
         olc::vd2d displacement;
 
@@ -168,6 +174,26 @@ public:
             rect2.colour = olc::WHITE;
         }
 
+		auto getTile[&](int x, int y) {
+			//CHECK BOUNDS IF NOT DUMB
+			return MapVector[(y * MAPWIDTH) + x];
+		}
+		float worldX = player.position.x / 16;
+		float worldY = player.position.y / 16;
+		float oldWorldX = oldpos.x / 16;
+		float oldWorldY = oldpos.y / 16;
+
+		if (player.velocity.x < 0)
+		{
+			int tile0 = MapVector[];
+			int tile1 = MapVector[(((int)worldY - 1) * MAPWIDTH) + (int)worldX];
+			for (int i = 0; i < 8; i++)
+			{
+				if (tile0 == collidableTileArray[i])
+					player.position = oldpos;
+			}
+		}
+		else
 
         Clear( olc::CYAN );
 
@@ -193,7 +219,8 @@ public:
                 return olc::vi2d( w * 16, h * 16 );
             };
 
-            SetPixelMode( olc::Pixel::ALPHA );
+			if (ActiveTile == 379 || ActiveTile == 346)
+				SetPixelMode( olc::Pixel::ALPHA );
             DrawPartialSprite( { static_cast<int>(camera.position.x + (x * 16)), static_cast<int>(camera.position.y + (y * 16)) }, tileSet, DrawFrom( ActiveTile ), { 16, 16 });
             SetPixelMode( olc::Pixel::NORMAL );
 
