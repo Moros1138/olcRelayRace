@@ -1,3 +1,13 @@
+// THE AUTHORS
+//
+// Moros1138
+//
+//
+//
+//
+//
+//
+
 #define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
 
